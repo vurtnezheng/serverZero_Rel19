@@ -71,6 +71,10 @@
 #include "CreatureLinkingMgr.h"
 #include "LuaEngine.h"
 
+// Playerbot mod
+#include "playerbot/config.h"
+// End playerbot mod
+
 INSTANTIATE_SINGLETON_1(World);
 
 extern void LoadGameObjectModelList();
@@ -736,6 +740,23 @@ void World::LoadConfigSettings(bool reload)
     
     setConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT,      "PetUnsummonAtMount", false);
 
+	// Playerbot mod
+	setConfig(CONFIG_BOOL_PLAYERBOT_ENABLE_BOTS,			"PlayerbotAI.EnableBots", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_DEBUG_WHISPER,			"PlayerbotAI.DebugWhisper", false);
+	setConfig(CONFIG_FLOAT_PLAYERBOT_FOLLOW_DISTANCE_MIN,	"PlayerbotAI.FollowDistanceMin", 0.5f);
+	setConfig(CONFIG_FLOAT_PLAYERBOT_FOLLOW_DISTANCE_MAX,	"PlayerbotAI.FollowDistanceMax", 1.0f);
+	setConfig(CONFIG_UINT32_PLAYERBOT_MAX_NUM_BOTS,			"PlayerbotAI.MaxNumBots", 9);
+	setConfig(CONFIG_UINT32_PLAYERBOT_RESTRICT_BOT_LEVEL,	"PlayerbotAI.RestrictBotLevel", 60);
+	setConfig(CONFIG_UINT32_PLAYERBOT_BOTGUY_COST,			"PlayerbotAI.BotguyCost", 0);
+	setConfig(CONFIG_BOOL_PLAYERBOT_COLLECT_COMBAT,			"PlayerbotAI.Collect.Combat", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_COLLECT_QUEST,			"PlayerbotAI.Collect.Quest", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_COLLECT_PROFESSION,		"PlayerbotAI.Collect.Profession", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_COLLECT_LOOT,			"PlayerbotAI.Collect.Loot", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_COLLECT_SKIN,			"PlayerbotAI.Collect.Skin", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_COLLECT_OBJECTS,		"PlayerbotAI.Collect.Objects", true);
+	setConfig(CONFIG_BOOL_PLAYERBOT_SELL_GARBAGE,			"PlayerbotAI.SellGarbage", false);
+	// End playerbot mod
+
     m_relocation_ai_notify_delay = sConfig.GetIntDefault("Visibility.AIRelocationNotifyDelay", 1000u);
     m_relocation_lower_limit_sq  = pow(sConfig.GetFloatDefault("Visibility.RelocationLowerLimit", 10), 2);
 
@@ -1326,6 +1347,18 @@ void World::SetInitialWorldSettings()
 
     sLog.outString("Initialize AuctionHouseBot...");
     sAuctionBot.Initialize();
+
+	// Playerbot mod
+	if (sWorld.getConfig(CONFIG_BOOL_PLAYERBOT_ENABLE_BOTS))
+	{
+		sLog.outString("Playerbots are enabled. This playerbot system is based on the original by blueboy and the Playerbot team.");
+	}
+	else
+	{
+		sLog.outString("Playerbots are disabled. To enable, change the value in the configuration file.");
+	}
+	// End playerbot mod
+
 
     sLog.outString("WORLD: World initialized");
 

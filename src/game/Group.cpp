@@ -40,6 +40,10 @@
 #include "LootMgr.h"
 #include "LuaEngine.h"
 
+// Playerbot mod
+#include "playerbot/PlayerbotMgr.h"
+// End playerbot mod
+
 #define LOOT_ROLL_TIMEOUT  (1*MINUTE*IN_MILLISECONDS)
 
 //===================================================
@@ -306,6 +310,12 @@ bool Group::AddMember(ObjectGuid guid, const char* name)
 
 uint32 Group::RemoveMember(ObjectGuid guid, uint8 method)
 {
+    //Playerbot mod - if master leaves group, all bots leave group
+    Player* const master = sObjectMgr.GetPlayer(guid);
+    if (master && master->GetPlayerbotMgr())
+        { master->GetPlayerbotMgr()->RemoveAllBotsFromGroup(); }
+    //End Playerbot mod
+
     // remove member and change leader (if need) only if strong more 2 members _before_ member remove
     if (GetMembersCount() > uint32(isBGGroup() ? 1 : 2))    // in BG group case allow 1 members group
     {

@@ -68,6 +68,12 @@
 #include "SQLStorages.h"
 #include "LuaEngine.h"
 
+// Playerbot mod:
+#include "playerbot/PlayerbotAI.h"
+#include "playerbot/PlayerbotMgr.h"
+#include "Config/Config.h"
+// End playerbot mod
+
 #include <cmath>
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
@@ -366,6 +372,11 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), m_camera(this), m_
 {
     m_transport = 0;
 
+    // Playerbot mod:
+    m_playerbotAI = 0;
+    m_playerbotMgr = 0;
+	// End playerbot mod
+
     m_speakTime = 0;
     m_speakCount = 0;
 
@@ -562,6 +573,17 @@ Player::~Player()
     // clean up player-instance binds, may unload some instance saves
     for (BoundInstancesMap::iterator itr = m_boundInstances.begin(); itr != m_boundInstances.end(); ++itr)
         { itr->second.state->RemovePlayer(this); }
+
+    // Playerbot mod
+    if (m_playerbotAI) {
+        delete m_playerbotAI;
+        m_playerbotAI = 0;
+    }
+    if (m_playerbotMgr) {
+        delete m_playerbotMgr;
+        m_playerbotMgr = 0;
+    }
+	// End playerbot mod
 }
 
 void Player::CleanupsBeforeDelete()
@@ -1302,6 +1324,13 @@ void Player::Update(uint32 update_diff, uint32 p_time)
 
     if (IsHasDelayedTeleport())
         { TeleportTo(m_teleport_dest, m_teleport_options); }
+
+    // Playerbot mod
+    if (m_playerbotAI)
+        { m_playerbotAI->UpdateAI(p_time); }
+    else if (m_playerbotMgr)
+        { m_playerbotMgr->UpdateAI(p_time); }
+	// End playerbot mod
 }
 
 void Player::SetDeathState(DeathState s)
@@ -1507,6 +1536,12 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 
     // preparing unsummon pet if lost (we must get pet before teleportation or will not find it later)
     Pet* pet = GetPet();
+
+    // Playerbot mod: if this user has bots, tell them to stop following master
+    // so they don't try to follow the master after the master teleports
+    if (GetPlayerbotMgr())
+        { GetPlayerbotMgr()->Stay(); }
+	// End playerbot mod
 
     // don't let enter battlegrounds without assigned battleground id (for example through areatrigger)...
     // don't let gm level > 1 either
@@ -11190,8 +11225,19 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                 case GOSSIP_OPTION_TABARDDESIGNER:
                 case GOSSIP_OPTION_AUCTIONEER:
                     break;                                  // no checks
+                //Playerbot mod
+				case GOSSIP_OPTION_BOT:
+                {
+                    //std::string reqQuestIds = botConfig.GetStringDefault("PlayerbotAI.BotguyQuests","");
+                    uint32 cost = sWorld.getConfig(CONFIG_UINT32_PLAYERBOT_BOTGUY_COST);
+                    if(!pCreature->IsInnkeeper() && this->GetMoney() >= cost)
+                        { pCreature->LoadBotMenu(this); }
+                    hasMenuItem = false;
+                    break;
+                }
+				// End playerbot mod
                 default:
-                    sLog.outErrorDb("Creature entry %u have unknown gossip option %u for menu %u", pCreature->GetEntry(), itr->second.option_id, itr->second.menu_id);
+                    sLog.outErrorDb("Creature entry %u has unknown gossip option %u for menu %u", pCreature->GetEntry(), itr->second.option_id, itr->second.menu_id);
                     hasMenuItem = false;
                     break;
             }
@@ -11411,6 +11457,61 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId)
             GetSession()->SendBattlegGroundList(guid, bgTypeId);
             break;
         }
+		// Playerbot mod
+        case GOSSIP_OPTION_BOT:
+        {
+            // DEBUG_LOG("GOSSIP_OPTION_BOT");
+            PlayerTalkClass->CloseGossip();
+            uint32 guidlo = PlayerTalkClass->GossipOptionSender(gossipListId);
+            uint32 cost = sWorld.getConfig(CONFIG_UINT32_PLAYERBOT_BOTGUY_COST);
+
+            if (!GetPlayerbotMgr())
+                { SetPlayerbotMgr(new PlayerbotMgr(this)); }
+
+            if(GetPlayerbotMgr()->GetPlayerBot(ObjectGuid(HIGHGUID_PLAYER,guidlo)) != NULL)
+            {
+                GetPlayerbotMgr()->LogoutPlayerBot(ObjectGuid(HIGHGUID_PLAYER,guidlo));
+            }
+            else if(GetPlayerbotMgr()->GetPlayerBot(ObjectGuid(HIGHGUID_PLAYER,guidlo)) == NULL)
+            {
+                QueryResult *resultchar = CharacterDatabase.PQuery("SELECT COUNT(*) FROM characters WHERE online = '1' AND account = '%u'", m_session->GetAccountId());
+                if(resultchar)
+                {
+                    Field *fields = resultchar->Fetch();
+                    int maxnum = sWorld.getConfig(CONFIG_UINT32_PLAYERBOT_MAX_NUM_BOTS);
+                    int acctcharcount = fields[0].GetUInt32();
+                    if(!(m_session->GetSecurity() > SEC_PLAYER))
+                        if(acctcharcount > maxnum)
+                        {
+                            ChatHandler(this).PSendSysMessage("|cffff0000You cannot summon any more bots. (Current Max: |cffffffff%u)",maxnum);
+                            delete resultchar;
+                            break;
+                        }
+                }
+                delete resultchar;
+
+                QueryResult *resultlvl = CharacterDatabase.PQuery("SELECT level,name FROM characters WHERE guid = '%u'", guidlo);
+                if(resultlvl)
+                {
+                    Field *fields=resultlvl->Fetch();
+                    int maxlvl = sWorld.getConfig(CONFIG_UINT32_PLAYERBOT_RESTRICT_BOT_LEVEL);
+                    int charlvl = fields[0].GetUInt32();
+                    if(!(m_session->GetSecurity() > SEC_PLAYER))
+                        if(charlvl > maxlvl)
+                        {
+                            ChatHandler(this).PSendSysMessage("|cffff0000You cannot summon |cffffffff[%s]|cffff0000. Its level is too high. (Current Max: level |cffffffff%u)",fields[1].GetString(),maxlvl);
+                            delete resultlvl;
+                            break;
+                        }
+                }
+                delete resultlvl;
+
+                GetPlayerbotMgr()->LoginPlayerBot(ObjectGuid(HIGHGUID_PLAYER,guidlo));
+                this->ModifyMoney(-(int32)cost);
+            }
+            return;
+        }
+		// End playerbot mod
     }
 
     if (pMenuData.m_gAction_script)
