@@ -43,6 +43,10 @@
 #include "CellImpl.h"
 #include "LuaEngine.h"
 
+// Playerbot mod
+#include "playerbot/PlayerbotAI.h"
+// End playerbot mod
+
 bool WorldSession::processChatmessageFurtherAfterSecurityChecks(std::string& msg, uint32 lang)
 {
     if (lang != LANG_ADDON)
@@ -230,7 +234,16 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 
             // Used by Eluna
             sEluna->OnChat(GetPlayer(), type, lang, msg, player);
-            GetPlayer()->Whisper(msg, lang, player->GetObjectGuid());
+
+            // Playerbot mod: handle whispered command to bot
+            if (player->GetPlayerbotAI())
+            {
+                player->GetPlayerbotAI()->HandleCommand(msg, *GetPlayer());
+                GetPlayer()->m_speakTime = 0;
+                GetPlayer()->m_speakCount = 0;
+            }
+            else
+            	{ GetPlayer()->Whisper(msg, lang, player->GetObjectGuid()); }
         } break;
 
         case CHAT_MSG_PARTY:
@@ -262,6 +275,19 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             // Used by Eluna
             if (!sEluna->OnChat(GetPlayer(), type, lang, msg, group))
                 return;
+
+            // Playerbot mod: broadcast message to bot members
+            for(GroupReference* itr = group->GetFirstMember(); itr != NULL; itr=itr->next())
+            {
+                Player* player = itr->getSource();
+                if (player && player->GetPlayerbotAI())
+                {
+                    player->GetPlayerbotAI()->HandleCommand(msg, *GetPlayer());
+                    GetPlayer()->m_speakTime = 0;
+                    GetPlayer()->m_speakCount = 0;
+                }
+            }
+            // End Playerbot mod
 
             WorldPacket data;
             ChatHandler::BuildChatPacket(data, ChatMsg(type), msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
