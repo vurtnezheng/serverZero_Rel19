@@ -244,6 +244,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             }
             else
             	{ GetPlayer()->Whisper(msg, lang, player->GetObjectGuid()); }
+			// End playerbot mod
         } break;
 
         case CHAT_MSG_PARTY:

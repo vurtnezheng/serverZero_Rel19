@@ -743,8 +743,8 @@ void World::LoadConfigSettings(bool reload)
 	// Playerbot mod
 	setConfig(CONFIG_BOOL_PLAYERBOT_ENABLE_BOTS,			"PlayerbotAI.EnableBots", true);
 	setConfig(CONFIG_BOOL_PLAYERBOT_DEBUG_WHISPER,			"PlayerbotAI.DebugWhisper", false);
-	setConfig(CONFIG_FLOAT_PLAYERBOT_FOLLOW_DISTANCE_MIN,	"PlayerbotAI.FollowDistanceMin", 0.5f);
-	setConfig(CONFIG_FLOAT_PLAYERBOT_FOLLOW_DISTANCE_MAX,	"PlayerbotAI.FollowDistanceMax", 1.0f);
+	setConfigPos(CONFIG_FLOAT_PLAYERBOT_FOLLOW_DISTANCE_MIN,	"PlayerbotAI.FollowDistanceMin", 0.5f);
+	setConfigPos(CONFIG_FLOAT_PLAYERBOT_FOLLOW_DISTANCE_MAX,	"PlayerbotAI.FollowDistanceMax", 1.0f);
 	setConfig(CONFIG_UINT32_PLAYERBOT_MAX_NUM_BOTS,			"PlayerbotAI.MaxNumBots", 9);
 	setConfig(CONFIG_UINT32_PLAYERBOT_RESTRICT_BOT_LEVEL,	"PlayerbotAI.RestrictBotLevel", 60);
 	setConfig(CONFIG_UINT32_PLAYERBOT_BOTGUY_COST,			"PlayerbotAI.BotguyCost", 0);
