@@ -418,7 +418,7 @@ void PlayerbotAI::SendNotEquipList(Player& /*player*/)
             }
     }
 
-    TellMaster("Here's all the items in my inventory that I can equip.");
+    TellMaster("Here are all the items in my inventory that I can equip.");
     ChatHandler ch(GetMaster());
 
     const std::string descr[] = { "head", "neck", "shoulders", "body", "chest",
@@ -679,15 +679,15 @@ void PlayerbotAI::SendOrders(Player& /*player*/)
     if (!m_combatOrder)
         out << "Got no combat orders!";
     else if (m_combatOrder & ORDERS_TANK)
-        out << "I TANK";
+        out << "I will TANK";
     else if (m_combatOrder & ORDERS_ASSIST)
-        out << "I ASSIST " << (m_targetAssist ? m_targetAssist->GetName() : "unknown");
+        out << "I will ASSIST " << (m_targetAssist ? m_targetAssist->GetName() : "unknown");
     else if (m_combatOrder & ORDERS_HEAL)
-        out << "I HEAL";
+        out << "I will HEAL";
     if ((m_combatOrder & ORDERS_PRIMARY) && (m_combatOrder & ORDERS_SECONDARY))
         out << " and ";
     if (m_combatOrder & ORDERS_PROTECT)
-        out << "I PROTECT " << (m_targetProtect ? m_targetProtect->GetName() : "unknown");
+        out << "I will PROTECT " << (m_targetProtect ? m_targetProtect->GetName() : "unknown");
     out << ".";
 
     if (m_mgr->m_confDebugWhisper)
@@ -833,7 +833,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
                 switch (err)
                 {
                     case EQUIP_ERR_CANT_CARRY_MORE_OF_THIS:
-                        TellMaster("I can't carry anymore of those.");
+                        TellMaster("I can't carry any more of those.");
                         return;
                     case EQUIP_ERR_MISSING_REAGENT:
                         TellMaster("I'm missing some reagents for that.");
@@ -1291,7 +1291,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
                             }
                         }
                         else
-                            TellMaster("My skill is %u but it requires %u", skillValue, reqSkillValue);
+                            TellMaster("My skill is %u but it requires %u.", skillValue, reqSkillValue);
                     }
                 }
 
@@ -2421,7 +2421,7 @@ void PlayerbotAI::TurnInQuests(WorldObject *questgiver)
     ObjectGuid giverGUID = questgiver->GetObjectGuid();
 
     if (!m_bot->IsInMap(questgiver))
-        TellMaster("hey you are turning in quests without me!");
+        TellMaster("Hey, you are turning in quests without me!");
     else
     {
         m_bot->SetSelectionGuid(giverGUID);
@@ -5647,10 +5647,10 @@ void PlayerbotAI::HandleCommand(const std::string& text, Player& fromPlayer)
         {
             bool hasIncompleteQuests = false;
             std::ostringstream incomout;
-            incomout << "my incomplete quests are:";
+            incomout << "My incomplete quests are:";
             bool hasCompleteQuests = false;
             std::ostringstream comout;
-            comout << "my complete quests are:";
+            comout << "My complete quests are:";
             for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
             {
                 if (uint32 questId = m_bot->GetQuestSlotQuestId(slot))
@@ -6037,7 +6037,7 @@ void PlayerbotAI::HandleCommand(const std::string& text, Player& fromPlayer)
             TrainerSpellData const* tSpells = creature->GetTrainerTemplateSpells();
             if (!cSpells && !tSpells)
             {
-                SendWhisper("No spells can be learnt from this trainer", fromPlayer);
+                SendWhisper("No spells can be learned from this trainer.", fromPlayer);
                 return;
             }
 
@@ -6047,7 +6047,7 @@ void PlayerbotAI::HandleCommand(const std::string& text, Player& fromPlayer)
             // Handle: Learning class or profession (primary or secondary) skill & spell(s) for selected trainer, skill learn [HLINK][HLINK][HLINK].. ([HLINK] from skill train)
             if (subcommand == "learn" || subcommand == "l")
             {
-                msg << "I have learnt the following spells:\r";
+                msg << "I have learned the following spells:\r";
                 uint32 totalSpellLearnt = 0;
                 bool visuals = true;
                 m_spellsToLearn.clear();
@@ -6214,8 +6214,7 @@ void PlayerbotAI::HandleCommand(const std::string& text, Player& fromPlayer)
             }
         }
         // Handle: Unlearning selected primary profession skill(s) and all associated spells, skill unlearn [HLINK][HLINK].. ([HLINK] from skill)
-        else
-        if (subcommand == "unlearn" || subcommand == "u")
+        else if (subcommand == "unlearn" || subcommand == "u")
         {
             m_spellsToLearn.clear();
             extractSpellIdList(part, m_spellsToLearn);
@@ -6362,7 +6361,7 @@ void PlayerbotAI::HandleCommand(const std::string& text, Player& fromPlayer)
     }
     else
     {
-        // if this looks like an item link, reward item it completed quest and talking to NPC
+        // if this looks like an item link, reward item if completed quest and talking to NPC
         std::list<uint32> itemIds;
         extractItemIds(text, itemIds);
         if (!itemIds.empty()) {
