@@ -524,6 +524,7 @@ bool Master::_StartDB()
         return false;
     }
 
+    /*
     if (!LoginDatabase.CheckRequiredField("realmd_db_version", REVISION_DB_REALMD))
     {
         ///- Wait for already started DB delay threads to end
@@ -532,6 +533,7 @@ bool Master::_StartDB()
         LoginDatabase.HaltDelayThread();
         return false;
     }
+    */
 
     ///- Get the realm Id from the configuration file
     realmID = sConfig.GetIntDefault("RealmID", 0);
