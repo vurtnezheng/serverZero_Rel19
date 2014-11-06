@@ -43,7 +43,10 @@ instance_stratholme::instance_stratholme(Map* pMap) : ScriptedInstance(pMap),
     m_uiYellCounter(0),
     m_uiMindlessCount(0),
     m_uiPostboxesUsed(0),
-    m_uiSilverHandKilled(0)
+    m_uiSilverHandKilled(0),
+    m_uiThreeDead(0),
+    m_uiStairDead(0),
+    m_bInitializeCrusaderSquare(false)
 {
     Initialize();
 }
@@ -95,12 +98,18 @@ void instance_stratholme::OnCreatureCreate(Creature* pCreature)
         case NPC_CRIMSON_GALLANT:
         case NPC_CRIMSON_GUARDSMAN:
         case NPC_CRIMSON_CONJURER:
+        {
             // Only store those in the yard
             if (pCreature->IsWithinDist2d(aTimmyLocation[1].m_fX, aTimmyLocation[1].m_fY, 40.0f))
             {
-                m_suiCrimsonLowGuids.insert(pCreature->GetGUIDLow());
+                m_suiCrimsonLowGuids.insert(pCreature->GetObjectGuid());
             }
-            break;
+            
+            if (pCreature->IsWithinDist2d(aLineHoldPack[0].m_fX, aLineHoldPack[0].m_fY, 12.0f))
+                m_mNpcEntryGuidStore[NPC_CRIMSON_GUARDSMAN] = pCreature->GetObjectGuid();
+            else if (pCreature->IsWithinDist2d(aStairsPack[0].m_fX, aStairsPack[0].m_fY, 10.0f))
+                m_mNpcEntryGuidStore[NPC_CRIMSON_CONJURER] = pCreature->GetObjectGuid();
+        }
     }
 }
 
@@ -229,7 +238,7 @@ void instance_stratholme::SetData(uint32 uiType, uint32 uiData)
                     DoUseDoorOrButton(GO_PORT_GAUNTLET);
                 }
 
-                uint32 uiCount = m_sAbomnationGUID.size();
+                uint32 uiCount = (uint32)m_sAbomnationGUID.size();
                 for (GuidSet::iterator itr = m_sAbomnationGUID.begin(); itr != m_sAbomnationGUID.end();)
                 {
                     if (Creature* pAbom = instance->GetCreature(*itr))
@@ -453,6 +462,9 @@ void instance_stratholme::SetData(uint32 uiType, uint32 uiData)
             }
             // No need to save anything here, so return
             return;
+        case TYPE_CRUSADER_SQUARE:
+            m_auiEncounter[uiType] = uiData;
+            break;
     }
 
     if (uiData == DONE)
@@ -461,7 +473,7 @@ void instance_stratholme::SetData(uint32 uiType, uint32 uiData)
 
         std::ostringstream saveStream;
         saveStream << m_auiEncounter[0] << " " << m_auiEncounter[1] << " " << m_auiEncounter[2] << " "
-                   << m_auiEncounter[3] << " " << m_auiEncounter[4] << " " << m_auiEncounter[5] << " " << m_auiEncounter[6];
+                   << m_auiEncounter[3] << " " << m_auiEncounter[4] << " " << m_auiEncounter[5] << " " << m_auiEncounter[6] << " " << m_auiEncounter[10];
 
         m_strInstData = saveStream.str();
 
@@ -482,7 +494,7 @@ void instance_stratholme::Load(const char* chrIn)
 
     std::istringstream loadStream(chrIn);
     loadStream >> m_auiEncounter[0] >> m_auiEncounter[1] >> m_auiEncounter[2] >> m_auiEncounter[3]
-               >> m_auiEncounter[4] >> m_auiEncounter[5] >> m_auiEncounter[6];
+               >> m_auiEncounter[4] >> m_auiEncounter[5] >> m_auiEncounter[6] >> m_auiEncounter[10];
 
     for (uint8 i = 0; i < MAX_ENCOUNTER; ++i)
     {
@@ -505,6 +517,9 @@ void instance_stratholme::Load(const char* chrIn)
     {
         m_auiEncounter[TYPE_PALLID] = SPECIAL;
     }
+
+    if (m_auiEncounter[TYPE_CRUSADER_SQUARE] == SPECIAL)
+        InitializeCrusaderSquare();
 
     OUT_LOAD_INST_DATA_COMPLETE;
 }
@@ -688,6 +703,136 @@ void instance_stratholme::OnCreatureEvade(Creature* pCreature)
     }
 }
 
+void instance_stratholme::InitializeCrusaderSquare()
+{
+    m_bInitializeCrusaderSquare = true;
+
+    if (Creature* pGuardsman = GetSingleCreatureFromStorage(NPC_CRIMSON_GUARDSMAN))
+    {
+        Creature* pSerker = GetClosestCreatureWithEntry(pGuardsman, NPC_SKELETAL_BERSERKER, 10.0f, true);
+        Creature* pGuardian = GetClosestCreatureWithEntry(pGuardsman, NPC_SKELETAL_GUARDIAN, 10.0f, true);
+
+        if (pGuardian)
+        {
+            pGuardsman->AddThreat(pGuardian, 244.0f);
+            if (pGuardsman->AI())
+                pGuardsman->AI()->AttackStart(pGuardian);
+
+            pGuardian->SetHealthPercent(40.0f);
+        }
+
+        if (pSerker)
+            pGuardsman->AddThreat(pSerker, 100.0f);
+    }
+
+    if (Creature* pConjurer = GetSingleCreatureFromStorage(NPC_CRIMSON_CONJURER))
+    {
+        Creature* pSerker = GetClosestCreatureWithEntry(pConjurer, NPC_SKELETAL_BERSERKER, 10.0f, true);
+        Creature* pGuardian = GetClosestCreatureWithEntry(pConjurer, NPC_SKELETAL_GUARDIAN, 10.0f, true);
+
+        if (pGuardian)
+        {
+            pConjurer->AddThreat(pGuardian, 244.0f);
+            if (pConjurer->AI())
+                pConjurer->AI()->AttackStart(pGuardian);
+
+            pGuardian->SetHealthPercent(40.0f);
+        }
+
+        if (pSerker)
+            pConjurer->AddThreat(pSerker, 100.0f);
+    }
+
+    SetData(TYPE_CRUSADER_SQUARE, SPECIAL);
+}
+
+void instance_stratholme::TriggerCrusaderSquareEvent(Creature* pTrigger)
+{
+    // Only one of the creatures should yell, hence we will use this
+    // boolean to prevent otherwise
+    bool yellDone = false;
+
+    switch (pTrigger->GetRespawnDelay())
+    {
+    case RESPAWN_TIME_STAIR_PACK:
+        // A mob from the stair pack has died,
+        // reflect it
+        ++m_uiStairDead;
+        if (m_uiStairDead >= MAX_STAIRS)
+        {
+            for (GuidSet::const_iterator itr = m_suiCrimsonLowGuids.begin(); itr != m_suiCrimsonLowGuids.end(); ++itr)
+            {
+                if (Creature* pCreature = instance->GetCreature(*itr))
+                {
+                    if (pCreature->IsAlive() && pCreature->GetRespawnDelay() == RESPAWN_TIME_TWO_PACK)
+                    {
+                        float x = aMidStairs[0].m_fX;
+                        float y = aMidStairs[0].m_fY;
+                        float z = aMidStairs[0].m_fZ;
+
+                        // we use a point in the middle 
+                        // of the stairs for simplicity
+                        // and find our two points using
+                        // offsets instead; -2 for the
+                        // second
+                        int32 offset = -2;
+
+                        if (!yellDone)
+                        {
+                            pCreature->MonsterYell("Move back to the stairs and defend!", 0, 0);
+
+                            // ... and +2 for the first
+                            yellDone = true;
+                            offset += 4;
+                        }
+
+                        z = pCreature->GetMap()->GetHeight(x+offset, y+offset, z);
+
+                        pCreature->GetMotionMaster()->Clear();
+                        // The creatures should not walk
+                        pCreature->SetWalk(false);
+                        pCreature->GetMotionMaster()->MovePoint(0, x+offset, y+offset, z);
+
+                    }
+                }
+            }
+        }
+        break;
+    case RESPAWN_TIME_THREE_PACK:
+        ++m_uiThreeDead;
+        if (m_uiThreeDead >= MAX_THREE)
+        {
+            // reuse already initialized value instead
+            // of initializing another one
+            m_uiThreeDead = 0;
+            for (GuidSet::const_iterator itr = m_suiCrimsonLowGuids.begin(); itr != m_suiCrimsonLowGuids.end(); ++itr)
+            {
+                if (Creature* pCreature = instance->GetCreature(*itr))
+                {
+                    if (pCreature->IsAlive() && pCreature->GetRespawnDelay() == RESPAWN_TIME_LINE_PACK)
+                    {
+                        pCreature->GetMotionMaster()->Clear();
+                        pCreature->SetWalk(false);
+                        pCreature->GetMotionMaster()->MovePoint(0, aThreePack[m_uiThreeDead].m_fX, aThreePack[m_uiThreeDead].m_fY, aThreePack[m_uiThreeDead].m_fZ);
+
+                        // Three different mobs, so three different
+                        // positions they should run to
+                        ++m_uiThreeDead;
+
+                        if (!yellDone)
+                        {
+                            pCreature->MonsterYell("Move back and hold the line! We cannot fail or all will be lost!", 0, 0);
+                            yellDone = true;
+                        }
+                    }
+                }
+            }
+        }
+        break;
+    }
+
+}
+
 void instance_stratholme::OnCreatureDeath(Creature* pCreature)
 {
     switch (pCreature->GetEntry())
@@ -744,14 +889,19 @@ void instance_stratholme::OnCreatureDeath(Creature* pCreature)
 
             break;
 
-            // Timmy spawn support
+            // Event support
         case NPC_CRIMSON_INITIATE:
         case NPC_CRIMSON_GALLANT:
         case NPC_CRIMSON_GUARDSMAN:
         case NPC_CRIMSON_CONJURER:
-            if (m_suiCrimsonLowGuids.find(pCreature->GetGUIDLow()) != m_suiCrimsonLowGuids.end())
+            if (m_suiCrimsonLowGuids.find(pCreature->GetObjectGuid()) != m_suiCrimsonLowGuids.end())
             {
-                m_suiCrimsonLowGuids.erase(pCreature->GetGUIDLow());
+                // Initialize the crusader square misc events
+                // as soon as the first mob in the square dies
+                if (!m_bInitializeCrusaderSquare)
+                    InitializeCrusaderSquare();
+
+                m_suiCrimsonLowGuids.erase(pCreature->GetObjectGuid());
 
                 // If all courtyard mobs are dead then summon Timmy
                 if (m_suiCrimsonLowGuids.empty())
@@ -759,6 +909,12 @@ void instance_stratholme::OnCreatureDeath(Creature* pCreature)
                     pCreature->SummonCreature(NPC_TIMMY_THE_CRUEL, aTimmyLocation[0].m_fX, aTimmyLocation[0].m_fY, aTimmyLocation[0].m_fZ, aTimmyLocation[0].m_fO, TEMPSUMMON_DEAD_DESPAWN, 0);
                 }
             }
+
+            // Counting of dead mobs in the crusader
+            // square will be handled here -- separate
+            // effects and scripts are handled in 
+            // function below
+            TriggerCrusaderSquareEvent(pCreature);
             break;
     }
 }

@@ -28,7 +28,7 @@
 
 enum
 {
-    MAX_ENCOUNTER               = 10,
+    MAX_ENCOUNTER               = 11,
     MAX_SILVERHAND              = 5,
     MAX_ZIGGURATS               = 3,
 
@@ -42,6 +42,7 @@ enum
     TYPE_BLACK_GUARDS           = 7,
     TYPE_POSTMASTER             = 8,
     TYPE_TRUE_MASTERS           = 9,
+    TYPE_CRUSADER_SQUARE        = 10,
 
     NPC_TIMMY_THE_CRUEL         = 10808,
     NPC_BARTHILAS               = 10435,
@@ -62,6 +63,8 @@ enum
     NPC_CRIMSON_GALLANT         = 10424,
     NPC_CRIMSON_GUARDSMAN       = 10418,
     NPC_CRIMSON_CONJURER        = 10419,
+    NPC_SKELETAL_GUARDIAN       = 10390,
+    NPC_SKELETAL_BERSERKER      = 10391,
     NPC_UNDEAD_POSTMAN          = 11142,
     NPC_GREGOR_THE_JUSTICIAR    = 17910,                    // related to quest "True Masters of the Light"
     NPC_CATHELA_THE_SEEKER      = 17911,
@@ -100,11 +103,46 @@ enum
     SAY_ANNOUNCE_RAMSTEIN       = -1329013,
     SAY_UNDEAD_DEFEAT           = -1329014,
     SAY_EPILOGUE                = -1329015,
+
+    RESPAWN_TIME_LINE_PACK      = 7199,
+    RESPAWN_TIME_TWO_PACK       = 7201,
+    RESPAWN_TIME_STAIR_PACK     = 7202,
+    RESPAWN_TIME_THREE_PACK     = 7203,
+
+    MAX_STAIRS                  = 4,
+    MAX_THREE                   = 3
 };
 
 struct EventLocation
 {
     float m_fX, m_fY, m_fZ, m_fO;
+};
+
+    // Location of guardsman fighting undead
+static const EventLocation aLineHoldPack[] =
+{
+    { 3365.8f, -3190.7f, 126.3f }
+};
+
+    // Location of conjurer fighting undead
+static const EventLocation aStairsPack[] =
+{
+    { 3638.7f, -3173.0f, 128.4f }
+};
+
+    // Three different locations for the line holder
+    // pack to run to
+static const EventLocation aThreePack[] =
+{
+    { 3658.4f, -3178.3f, 127.4f },
+    { 3662.8f, -3175.1f, 126.5f },
+    { 3665.6f, -3173.8f, 126.5f }
+};
+
+    // Middle point of the stairs, used for offset
+static const EventLocation aMidStairs[] =
+{
+    { 3661.2f, -3160.6f, 128.f}
 };
 
 static const EventLocation aStratholmeLocation[] =
@@ -157,8 +195,11 @@ class MANGOS_DLL_DECL instance_stratholme : public ScriptedInstance
 
     protected:
         bool StartSlaugtherSquare();
+        bool m_bInitializeCrusaderSquare;
         void DoSortZiggurats();
         void ThazudinAcolyteJustDied(Creature* pCreature);
+        void TriggerCrusaderSquareEvent(Creature* pTrigger);
+        void InitializeCrusaderSquare();
 
         uint32 m_auiEncounter[MAX_ENCOUNTER];
         std::string m_strInstData;
@@ -172,15 +213,17 @@ class MANGOS_DLL_DECL instance_stratholme : public ScriptedInstance
         uint32 m_uiMindlessCount;
         uint8 m_uiPostboxesUsed;
         uint8 m_uiSilverHandKilled;
+        uint8 m_uiThreeDead;
+        uint8 m_uiStairDead;
 
         ZigguratStore m_zigguratStorage[MAX_ZIGGURATS];
 
-        std::set<uint32> m_suiCrimsonLowGuids;
         GuidList m_luiCrystalGUIDs;
         GuidSet m_sAbomnationGUID;
         GuidList m_luiAcolyteGUIDs;
         GuidList m_luiUndeadGUIDs;
         GuidList m_luiGuardGUIDs;
+        GuidSet m_suiCrimsonLowGuids;
 };
 
 #endif
